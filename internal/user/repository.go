@@ -8,6 +8,12 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+type IUserRepository interface {
+	Create(newUser *User) (*User, error)
+	GetById(id uint) (*User, error)
+	Update(updUser *User, id uint) (*User, error)
+}
+
 type UserRepository struct {
 	database *db.Db
 }
@@ -40,9 +46,21 @@ func (repo *UserRepository) Update(updUser *User, id uint) (*User, error) {
 	}
 	updUser.ID = id
 	updUser.Password = existedUser.Password
-	result = repo.database.DB.Clauses(clause.Returning{}).Where("deleted_at IS NULL").Updates(updUser)
+	result = repo.database.DB.Clauses(clause.Returning{}).Updates(updUser)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 	return updUser, nil
+}
+
+func (repo *UserRepository) GetById(id uint) (*User, error) {
+	var existedUser User
+	result := repo.database.DB.First(&existedUser, "id = ?", id)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if existedUser.ID == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &existedUser, nil
 }
