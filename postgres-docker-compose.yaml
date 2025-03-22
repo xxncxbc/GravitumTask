@@ -1,6 +1,6 @@
 services:
   postgres:
-    container_name: postgres_go
+    container_name: GravitumTask
     image: postgres:16.4
     environment:
       POSTGRES_DB: "postgres"

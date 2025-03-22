@@ -36,9 +36,11 @@ func (repo *UserRepository) Update(updUser *User, id uint) (*User, error) {
 		return nil, gorm.ErrRecordNotFound
 	}
 	if bcrypt.CompareHashAndPassword([]byte(existedUser.Password), []byte(updUser.Password)) != nil {
-		return nil, errors.New("wrong password")
+		return nil, errors.New(ErrWrongPassword)
 	}
-	result = repo.database.DB.Clauses(clause.Returning{}).Updates(updUser)
+	updUser.ID = id
+	updUser.Password = existedUser.Password
+	result = repo.database.DB.Clauses(clause.Returning{}).Where("deleted_at IS NULL").Updates(updUser)
 	if result.Error != nil {
 		return nil, result.Error
 	}

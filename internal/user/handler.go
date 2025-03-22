@@ -3,6 +3,8 @@ package user
 import (
 	"GravitumTask/pkg/req"
 	"GravitumTask/pkg/res"
+	"errors"
+	"gorm.io/gorm"
 	"net/http"
 	"strconv"
 )
@@ -62,11 +64,11 @@ func (handler *UserHandler) Update() http.HandlerFunc {
 			Email:    payload.Email,
 			Password: payload.Password,
 		}, uint(id))
-		if err.Error() == "wrong password" {
-			http.Error(w, "wrong password", http.StatusBadRequest)
-			return
-		}
 		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
