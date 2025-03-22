@@ -4,6 +4,7 @@ import (
 	"GravitumTask/pkg/req"
 	"GravitumTask/pkg/res"
 	"net/http"
+	"strconv"
 )
 
 type UserHandler struct {
@@ -13,20 +14,69 @@ type UserHandler struct {
 func NewUserHandler(router *http.ServeMux, repository *UserRepository) {
 	handler := &UserHandler{Repository: repository}
 	router.HandleFunc("POST /users", handler.Create())
+	router.HandleFunc("PUT /users/{id}", handler.Update())
 }
 
 func (handler *UserHandler) Create() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		body, err := req.HandleBody()
+		payload, err := req.HandleBody[UserCreateRequest](&w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		createdUser, err := handler.Repository.Create()
+		createdUser, err := handler.Repository.Create(&User{
+			Email:    payload.Email,
+			Password: payload.Password,
+			Name:     payload.Name,
+		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		res.Json(w, createdUser, http.StatusOK)
+		resp := UserResponse{
+			ID:        createdUser.ID,
+			CreatedAt: createdUser.CreatedAt,
+			UpdatedAt: createdUser.UpdatedAt,
+			Name:      createdUser.Name,
+			Email:     createdUser.Email,
+		}
+		res.Json(w, resp, http.StatusCreated)
+	}
+}
+
+func (handler *UserHandler) Update() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idString := r.PathValue("id")
+		if idString == "" {
+			http.Error(w, "id is required", http.StatusBadRequest)
+			return
+		}
+		id, err := strconv.ParseUint(idString, 10, 32)
+		payload, err := req.HandleBody[UserUpdateRequest](&w, r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		updUser, err := handler.Repository.Update(&User{
+			Name:     payload.Name,
+			Email:    payload.Email,
+			Password: payload.Password,
+		}, uint(id))
+		if err.Error() == "wrong password" {
+			http.Error(w, "wrong password", http.StatusBadRequest)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		resp := UserResponse{
+			ID:        updUser.ID,
+			CreatedAt: updUser.CreatedAt,
+			UpdatedAt: updUser.UpdatedAt,
+			Name:      updUser.Name,
+			Email:     updUser.Email,
+		}
+		res.Json(w, resp, http.StatusOK)
 	}
 }
